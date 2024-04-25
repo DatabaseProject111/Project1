@@ -42,3 +42,17 @@ def add_stock_level():
     code, message = s.add_stock_level(user_id, store_id, book_id, add_num)
 
     return jsonify({"message": message}), code
+
+# 补全发货功能
+
+@bp_seller.route("/ship_books", methods=["POST"])
+def ship_books():
+    user_id: str = request.json.get("user_id")
+    store_id: str = request.json.get("store_id")
+    book_id: str = request.json.get("book_id")
+    quantity: int = request.json.get("quantity", 0)  # 确保默认值为 0
+
+    s = seller.Seller()
+    code, message = s.ship_books(user_id, store_id, book_id, quantity)
+
+    return jsonify({"message": message}), code
