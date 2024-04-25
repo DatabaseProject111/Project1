@@ -52,3 +52,18 @@ class Seller:
         headers = {"token": self.token}
         r = requests.post(url, headers=headers, json=json)
         return r.status_code
+
+#添加发货功能
+    def ship_books(
+        self, seller_id: str, store_id: str, book_id: str, quantity: int
+    ) -> int:
+        json_data = {
+            "user_id": seller_id,
+            "store_id": store_id,
+            "book_id": book_id,
+            "quantity": quantity,
+        }
+        url = urljoin(self.url_prefix, "ship_books")
+        headers = {"token": self.token}
+        r = requests.post(url, headers=headers, json=json_data)
+        return r.status_code
