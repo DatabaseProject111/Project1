@@ -349,5 +349,96 @@ class Buyer(db_conn.DBConn):
         #     return 530, "{}".format(str(e))
 
         return 200, "ok"
+    
+    # 添加收货功能
+    def receive_order(self, user_id: str, order_id: str) -> (int, str):
+        try:
+            # 检查订单是否存在
+            order_col = self.db["new_order"]
+            order_info = order_col.find_one({"order_id": order_id})
+            if order_info is None:
+                return error.error_invalid_order_id(order_id)
+
+            # 检查用户是否为订单所有者
+            buyer_id = order_info.get("user_id")
+            if buyer_id != user_id:
+                return error.error_authorization_fail()
+
+            # 更新订单状态为已收货
+            order_col.update_one(
+                {"order_id": order_id},
+                {"$set": {"status": "received"}}
+            )
+            # if result.modified_count == 0:
+            #     return error.error_invalid_order_id(order_id)
+
+        except pymongo.errors.PyMongoError as e:
+            return 528, "{}".format(str(e))
+        return 200, "ok"
+    
+    # 添加定时任务来取消超时订单
+    def cancel_timeout_orders(self):
+        try:
+            # 获取当前时间
+            current_time = datetime.now()
+
+            # 获取超时时间阈值为15分钟
+            timeout_threshold = timedelta(minutes=15)
+
+            # 获取所有未付款的订单
+            order_col = self.db["new_order"]
+            unpaid_orders = order_col.find({"status": "unpaid"})
+
+            for order in unpaid_orders:
+                # 获取订单创建时间
+                order_date = order.get("order_date")
+
+                # 计算订单创建时间到当前时间的时间差
+                time_diff = current_time - order_date
+
+                # 如果时间差超过超时时间阈值，则取消订单
+                if time_diff >= timeout_threshold:
+                    order_id = order.get("order_id")
+                    # 执行取消订单操作
+                    self.cancel_order(order_id)
+        except pymongo.errors.PyMongoError as e:
+            return 528, "{}".format(str(e))
+        return 200, "ok"
+    
+    def cancel_order(self, order_id: str) -> (int, str):
+        try:
+            # 检查订单是否存在
+            order_col = self.db["new_order"]
+            order_info = order_col.find_one({"order_id": order_id})
+            if order_info is None:
+                return error.error_invalid_order_id(order_id)
+
+            # 将订单状态设置为已取消
+            result = order_col.update_one(
+                {"order_id": order_id},
+                {"$set": {"status": "cancelled"}}
+            )
+
+            # 返还订单中的书籍数量到商店库存
+            order_detail_col = self.db["new_order_detail"]
+            order_details = order_detail_col.find({"order_id": order_id})
+            store_col = self.db["store"]
+            for detail in order_details:
+                book_id = detail.get("book_id")
+                count = detail.get("count")
+                store_col.update_one(
+                    {"store_id": order_info.get("store_id"), "book_id": book_id},
+                    {"$inc": {"stock_level": count}}
+                )
+
+            # 删除订单详情记录
+            result = order_detail_col.delete_many({"order_id": order_id})
+
+            # 删除订单记录
+            result = order_col.delete_one({"order_id": order_id})
+
+        except pymongo.errors.PyMongoError as e:
+            return 528, "{}".format(str(e))
+        return 200, "ok"
 
 
