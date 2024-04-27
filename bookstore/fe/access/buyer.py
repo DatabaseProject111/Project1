@@ -48,3 +48,26 @@ class Buyer:
         headers = {"token": self.token}
         r = requests.post(url, headers=headers, json=json)
         return r.status_code
+
+    #添加收货功能
+    def receive_order(self, order_id: str) -> (int, str):
+        json = {"user_id": self.user_id, "order_id": order_id}
+        url = urljoin(self.url_prefix, "receive_order")
+        headers = {"token": self.token}
+        r = requests.post(url, headers=headers, json=json)
+        return r.status_code
+    
+    # 添加自动取消订单功能
+    def cancel_timeout_orders(self):
+        url = urljoin(self.url_prefix, "cancel_timeout_orders")
+        headers = {"token": self.token}
+        r = requests.post(url, headers=headers)
+        return r.status_code
+
+    # 添加取消订单功能
+    def cancel_order(self, order_id: str) -> (int, str):
+        json = {"order_id": order_id}
+        url = urljoin(self.url_prefix, "cancel_order")
+        headers = {"token": self.token}
+        r = requests.post(url, headers=headers, json=json)
+        return r.status_code
