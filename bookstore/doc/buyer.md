@@ -142,3 +142,51 @@ Status Code:
 200 | 充值成功
 401 | 授权失败
 5XX | 无效参数
+
+
+## 收货功能
+
+### 功能描述
+
+更新订单状态为已收货。
+
+### 买家收货
+
+### URL
+
+POST http://[address]/buyer/receive_order
+
+
+### Request
+
+Headers:
+
+key | 类型 | 描述 | 是否可为空
+---|---|---|---
+token | string | 登录产生的会话标识 | N
+
+Body:
+
+```json
+{
+  "user_id": "user_id",
+  "order_id": "order_id",
+  "status": "received"
+}
+```
+
+key | 类型 | 描述 | 是否可为空
+---|---|---|---
+user_id | string | 买家用户ID | N
+order_id | string | 订单ID | N
+status | string | 订单状态，设为"received" | N
+
+### Response
+
+Status Code:
+
+码 | 描述
+--- | :--
+200 | 更新订单状态为已收货成功
+401 | 授权失败
+5XX | 无效参数
