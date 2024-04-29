@@ -8,14 +8,7 @@ import logging
 from be.model import error
 from be.model import db_conn
 import pymongo.errors
-
-# encode a json string like:
-#   {
-#       "user_id": [user name],
-#       "terminal": [terminal code],
-#       "timestamp": [ts]} to a JWT
-#   }
-
+from fe.access.book import BookDB
 
 def jwt_encode(user_id: str, terminal: str) -> str:
     encoded = jwt.encode(
@@ -26,12 +19,6 @@ def jwt_encode(user_id: str, terminal: str) -> str:
     return encoded
 
 
-# decode a JWT to a json string like:
-#   {
-#       "user_id": [user name],
-#       "terminal": [terminal code],
-#       "timestamp": [ts]} to a JWT
-#   }
 def jwt_decode(encoded_token, user_id: str) -> str:
     decoded = jwt.decode(encoded_token, key=user_id, algorithms="HS256")
     return decoded
@@ -41,7 +28,9 @@ class User(db_conn.DBConn):
     token_lifetime: int = 3600  # 3600 second
 
     def __init__(self):
-        db_conn.DBConn.__init__(self)
+        super().__init__()
+        self.book_db = BookDB()
+        
 
     def __check_token(self, user_id, db_token, token) -> bool:
         try:
@@ -112,8 +101,6 @@ class User(db_conn.DBConn):
                 return error.error_authorization_fail() + ("",)
         except pymongo.errors.PyMongoError as e:
             return 528, "{}".format(str(e)), ""
-        # except BaseException as e:
-        #     return 530, "{}".format(str(e)), ""
         return 200, "ok", token
 
 
@@ -135,8 +122,6 @@ class User(db_conn.DBConn):
                 return error.error_authorization_fail() + ("",)
         except pymongo.errors.PyMongoError as e:
             return 528, "{}".format(str(e))
-        # except BaseException as e:
-        #     return 530, "{}".format(str(e))
         return 200, "ok"
 
 
@@ -153,8 +138,6 @@ class User(db_conn.DBConn):
                 return error.error_authorization_fail()
         except pymongo.errors.PyMongoError as e:
             return 528, "{}".format(str(e))
-        # except BaseException as e:
-        #     return 530, "{}".format(str(e))
         return 200, "ok"
 
 
@@ -162,6 +145,7 @@ class User(db_conn.DBConn):
         self, user_id: str, old_password: str, new_password: str
     ) -> bool:
         try:
+            book_db = BookDB() 
             code, message = self.check_password(user_id, old_password)
             if code != 200:
                 return code, message
@@ -176,9 +160,59 @@ class User(db_conn.DBConn):
                 return error.error_authorization_fail()
         except pymongo.errors.PyMongoError as e:
             return 528, "{}".format(str(e))
-        # except BaseException as e:
-        #     return 530, "{}".format(str(e))
         return 200, "ok"
+    
+    
+    def search_books_global(self, query: str, start: int = 0, size: int = 10) -> list:
+        """
+        Search for books across all stores based on a query.
+        """
+        try:
+            book_db = BookDB() 
+            cursor = self.book_db.search_books(query=query, start=start, size=size)
+            books = self.format_books(cursor)
+            return 200, books
+        except pymongo.errors.PyMongoError as e:
+            return 528, "{}".format(str(e))
+        return 200, "ok"
+
+    def search_books_in_store(self, store_id: str, query: str, start: int = 0, size: int = 10) -> list:
+        """
+        Search for books within a specific store based on a query.
+        """
+        try:
+            books_cursor  = self.book_db.search_books_in_store(store_id=store_id, query=query, start=start, size=size)
+            books = self.format_books(books_cursor )
+            return 200, books
+        except pymongo.errors.PyMongoError as e:
+            return 528, "{}".format(str(e))
+        return 200, "ok"
+
+    def format_books(self, cursor) -> list:
+        """
+        Helper function to format book documents into Book objects.
+        """
+        books = []
+        for doc in cursor:
+            book = Book()
+            book.id = doc.get("id")
+            book.title = doc.get("title")
+            book.author = doc.get("author")
+            book.publisher = doc.get("publisher")
+            book.original_title = doc.get("original_title")
+            book.translator = doc.get("translator")
+            book.pub_year = doc.get("pub_year")
+            book.pages = doc.get("pages")
+            book.price = doc.get("price")
+            book.currency_unit = doc.get("currency_unit")
+            book.binding = doc.get("binding")
+            book.isbn = doc.get("isbn")
+            book.author_intro = doc.get("author_intro")
+            book.book_intro = doc.get("book_intro")
+            book.content = doc.get("content")
+            book.tags = doc.get("tags", [])
+            books.append(book)
+        return books
 
 
 

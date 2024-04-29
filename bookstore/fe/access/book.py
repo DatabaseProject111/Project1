@@ -36,6 +36,7 @@ class BookDB:
         self.client = pymongo.MongoClient("mongodb://localhost:27017/")
         self.db = self.client["bookstore"]
         self.collection = self.db["book"]
+        self.collection.create_index([("$**", "text")])  # 创建全文索引
 
     def get_book_count(self):
         return self.collection.count_documents({})
